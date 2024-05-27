@@ -5,6 +5,7 @@ const schema = new Schema(
     {
         name: { type: String },
         phone: { type: String, maxLength: 13, index: { unique: true } },
+        current_order_id: { type: mongoose.Types.ObjectId },
         role: { type: String, enum: ['admin', 'clerk', 'user', 'deliveryMan'] },
         credentials: {
             email: { type: String },

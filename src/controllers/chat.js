@@ -1,3 +1,5 @@
+const { fetchMediaByName } = require("../models/Media");
+const { createOrder } = require("../models/Order");
 const { fetchUserByPhone, createUser, updateUserById } = require("../models/User");
 
 const phrases = require("../phrases");
@@ -9,28 +11,32 @@ const chat = async (client, message) => {
 
     const user = await fetchUserByPhone(userPhone);
     const userName = user?.name;
+    const hasOrder = user?.current_order_id;
 
     if (!user || userName === 'await') {
-        const data = { client, from, user }
-        await chooseNameRoutine(data);
-        return;
+        const data = { client, from, user, content };
+        const stop = await chooseNameRoutine(data);
+        if (stop) return;
+    }
+
+    if (!hasOrder) {
+        const data = { client, from, user, content };
+        const stop = await sendMenuOrderRoutine(data);
+        if (stop) return;
     }
 
 }
 
 const chooseNameRoutine = async ({ client, from, user, content }) => {
-
     if (!user) {
         const text = phrases.chooseName;
         const result = await client.sendText(from, text);
 
-        if (result.stauts !== 200) {
-            console.error(`error - ${result.status}`, result.text);
-            await client.sendText(from, phrases.errorMsgToUser);
-            return;
+        if (result.me.stauts !== 200) {
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     const userName = user.name;
@@ -38,11 +44,40 @@ const chooseNameRoutine = async ({ client, from, user, content }) => {
         const update = { $set: { name: content } }
         await updateUserById(user._id, update);
 
-        const txt = `Certo, ${content}! Antes de prosseguirmos, seu pedido será para entrega?`
+        return false;
+    }
+}
 
-        return true;
+const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
+    if (content == '1') {
+        const mediaValue = await fetchMediaByName('menu')
+            .then(data => data.value);
+
+        const res = await client.sendImageFromBase64(
+            from,
+            mediaValue
+        );
+
+        if (res.me.status !== 200)
+            return true;
     }
 
+    if (content == '2') {
+        await createOrder(user);
+        return false;
+    }
+
+    if (!content) {
+        const res = await client.sendText(
+            from,
+            phrases.menuOrder
+        );
+
+        if (res.me.status !== 200)
+            return true;
+    }
+
+    return false;
 }
 
 module.exports = chat;
