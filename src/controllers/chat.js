@@ -1,5 +1,5 @@
 const { fetchMediaByName } = require("../models/Media");
-const { createOrder } = require("../models/Order");
+const { createOrder, updateOrderById, fetchOrderById } = require("../models/Order");
 const { fetchUserByPhone, createUser, updateUserById } = require("../models/User");
 
 const phrases = require("../phrases");
@@ -11,7 +11,10 @@ const chat = async (client, message) => {
 
     const user = await fetchUserByPhone(userPhone);
     const userName = user?.name;
-    const hasOrder = user?.current_order_id;
+    const currentOrderId = user?.current_order_id;
+    const chossingAdress = user?.handle_routines.choosing_address;
+
+    let order = await fetchOrderById(currentOrderId);
 
     if (!user || userName === 'await') {
         const data = { client, from, user, content };
@@ -19,11 +22,21 @@ const chat = async (client, message) => {
         if (stop) return;
     }
 
-    if (!hasOrder) {
+    if (!order) {
         const data = { client, from, user, content };
         const stop = await sendMenuOrderRoutine(data);
+
         if (stop) return;
+
+        order = await createOrder(user);
     }
+
+
+    const isDelivery = order.delivery;
+    if (chossingAdress && isDelivery) {
+
+    }
+
 
 }
 
@@ -49,7 +62,7 @@ const chooseNameRoutine = async ({ client, from, user, content }) => {
 }
 
 const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
-    if (content == '1') {
+    if (content === '1') {
         const mediaValue = await fetchMediaByName('menu')
             .then(data => data.value);
 
@@ -60,9 +73,11 @@ const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
 
         if (res.me.status !== 200)
             return true;
+
+        await sendMenuOrderRoutine({ client, from, user, content: null });
     }
 
-    if (content == '2') {
+    if (content === '2') {
         await createOrder(user);
         return false;
     }
@@ -78,6 +93,23 @@ const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
     }
 
     return false;
+}
+
+const requestAddressRoutine = async ({ client, from }) => {
+    const res = await client.sendText(
+        from,
+        phrases.requestAddress
+    );
+
+    if (res.me.status !== 200)
+        return true;
+
+
+    return false;
+}
+
+const chooseAddressRoutine = async () => {
+
 }
 
 module.exports = chat;

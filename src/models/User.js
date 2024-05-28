@@ -13,12 +13,16 @@ const schema = new Schema(
         },
         address: [
             {
+                title: { type: String },
                 street: { type: String },
                 discrit: { type: String },
                 complement: { type: String },
                 location: { type: String },
             }
-        ]
+        ],
+        handle_routines: {
+            choosing_address: { type: Boolean, default: true }
+        }
     },
     {
         timestamps: true,
