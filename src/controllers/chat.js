@@ -31,10 +31,10 @@ const chat = async (client, message) => {
         order = await createOrder(user);
     }
 
-
-    const isDelivery = order.delivery;
-    if (chossingAdress && isDelivery) {
-
+    if (chossingAdress) {
+        const data = { client, from, user, content };
+        const stop = await chooseAddressRoutine();
+        if (stop) return;
     }
 
 
@@ -95,7 +95,7 @@ const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
     return false;
 }
 
-const requestAddressRoutine = async ({ client, from }) => {
+const requestAddressRoutine = async (client, from) => {
     const res = await client.sendText(
         from,
         phrases.requestAddress
@@ -108,7 +108,11 @@ const requestAddressRoutine = async ({ client, from }) => {
     return false;
 }
 
-const chooseAddressRoutine = async () => {
+const chooseAddressRoutine = async ({ client, from, user, content }) => {
+
+    if (!content) {
+        return await requestAddressRoutine(client, from);
+    }
 
 }
 
