@@ -53,7 +53,17 @@ const updateUserById = async (id, update) => {
     )
 }
 
+const fetchAddressByUserIdAndTitle = async (userId, title) => {
+    return await User.findOne(
+        {
+            _id: userId,
+            address: { $elementMatch: { title } }
+        }
+    );
+}
+
 module.exports = {
+    fetchAddressByUserIdAndTitle,
     updateUserById,
     createUser,
     fetchUserByPhone

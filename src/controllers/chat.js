@@ -35,7 +35,7 @@ const chat = async (client, message) => {
         await sendText(
             client,
             from,
-            phrases.isDelivery
+            phrases.requestTitleAddress
         );
     }
 
@@ -105,6 +105,7 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
     const userId = user._id;
     const choosingAddress = user.handle_routines.choosingAddress;
     const orderId = user.current_order_id;
+    const numberQuestionAddress = user.handle_routines.number_question_address;
 
     if (!choosingAddress && (content === '1' || content === '2')) {
         const isDelivery = content === '1';
@@ -129,6 +130,38 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
     }
 
     if (choosingAddress && content) {
+        let question = ''
+        
+
+        if (numberQuestionAddress == 0) {
+            const update = {
+                $push: {
+                    'address': {
+                        address: content
+                    }
+                }
+            }
+
+            await Promise.all([
+                updateOrderById(orderId, update),
+                updateUserById(
+                    userId,
+                    { $set: { 'handle_routines.number_question_address': 1 } }
+                )
+            ]);
+
+            await sendText(
+                client,
+                from,
+                phrases.requestLoc
+            )
+
+            return true;
+        }
+
+        if (numberQuestionAddress == 1) {
+
+        }
 
     }
 
