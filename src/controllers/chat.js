@@ -3,6 +3,7 @@ const { createOrder, updateOrderById, fetchOrderById } = require("../models/Orde
 const { fetchUserByPhone, createUser, updateUserById } = require("../models/User");
 
 const phrases = require("../phrases");
+const sendText = require("../utils/sendText");
 
 const chat = async (client, message) => {
     const userPhone = message.from.replace(/\D/g, '');
@@ -10,7 +11,7 @@ const chat = async (client, message) => {
     const content = message.sender.content;
 
     const user = await fetchUserByPhone(userPhone);
-    const chossingAdress = user?.handle_routines.choosing_address;
+    const choosingAddress = user?.handle_routines.choosing_address;
     const addressRoutine = user?.handle_routines.address_routine;
     const userName = user?.name;
     const userId = user?._id;
@@ -31,17 +32,18 @@ const chat = async (client, message) => {
         currentOrderId = await createOrder(user)
             .then(data => data._id);
 
-
-        await requestAddressRoutine(client, from);
+        await sendText(
+            client,
+            from,
+            phrases.isDelivery
+        );
     }
 
     if (addressRoutine) {
-        const data = { client, from, content, currentOrderId, userId, chossingAdress };
+        const data = { client, from, content, currentOrderId, userId, choosingAddress };
         const stop = await chooseAddressRoutine(data);
         if (stop) return;
     }
-
-
 }
 
 const chooseNameRoutine = async ({ client, from, user, content }) => {
@@ -99,23 +101,35 @@ const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
     return false;
 }
 
-const requestAddressRoutine = async (client, from) => {
-    const res = await client.sendText(
-        from,
-        phrases.requestAddress
-    );
+const chooseAddressRoutine = async ({ client, from, content, user }) => {
+    const userId = user._id;
+    const choosingAddress = user.handle_routines.choosingAddress;
+    const orderId = user.current_order_id;
 
-    if (res.me.status !== 200)
+    if (!choosingAddress && (content === '1' || content === '2')) {
+        const isDelivery = content === '1';
+        await Promise.all([
+            updateOrderById(
+                orderId,
+                { $set: { delivery: isDelivery } }
+            ),
+            updateUserById(
+                userId,
+                { $set: { 'handle_routines.choosing_address': isDelivery } }
+            )
+        ]);
+
+        await sendText(
+            client,
+            from,
+            phrases.requestAddress
+        );
+
         return true;
+    }
 
+    if (choosingAddress && content) {
 
-    return false;
-}
-
-const chooseAddressRoutine = async ({ client, from, content, currentOrderId, userId, chossingAdress }) => {
-
-    if (content === '1') {
-        
     }
 
     return false;
