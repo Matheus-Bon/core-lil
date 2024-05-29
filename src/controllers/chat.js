@@ -10,11 +10,11 @@ const chat = async (client, message) => {
     const content = message.sender.content;
 
     const user = await fetchUserByPhone(userPhone);
-    const userName = user?.name;
-    const currentOrderId = user?.current_order_id;
     const chossingAdress = user?.handle_routines.choosing_address;
-
-    let order = await fetchOrderById(currentOrderId);
+    const addressRoutine = user?.handle_routines.address_routine;
+    const userName = user?.name;
+    const userId = user?._id;
+    let currentOrderId = user?.current_order_id;
 
     if (!user || userName === 'await') {
         const data = { client, from, user, content };
@@ -22,18 +22,22 @@ const chat = async (client, message) => {
         if (stop) return;
     }
 
-    if (!order) {
+    if (!currentOrderId) {
         const data = { client, from, user, content };
         const stop = await sendMenuOrderRoutine(data);
 
         if (stop) return;
 
-        order = await createOrder(user);
+        currentOrderId = await createOrder(user)
+            .then(data => data._id);
+
+
+        await requestAddressRoutine(client, from);
     }
 
-    if (chossingAdress) {
-        const data = { client, from, user, content };
-        const stop = await chooseAddressRoutine();
+    if (addressRoutine) {
+        const data = { client, from, content, currentOrderId, userId, chossingAdress };
+        const stop = await chooseAddressRoutine(data);
         if (stop) return;
     }
 
@@ -108,12 +112,13 @@ const requestAddressRoutine = async (client, from) => {
     return false;
 }
 
-const chooseAddressRoutine = async ({ client, from, user, content }) => {
+const chooseAddressRoutine = async ({ client, from, content, currentOrderId, userId, chossingAdress }) => {
 
-    if (!content) {
-        return await requestAddressRoutine(client, from);
+    if (content === '1') {
+        
     }
 
+    return false;
 }
 
 module.exports = chat;

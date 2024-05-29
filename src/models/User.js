@@ -14,14 +14,14 @@ const schema = new Schema(
         address: [
             {
                 title: { type: String },
-                street: { type: String },
-                discrit: { type: String },
-                complement: { type: String },
+                address: { type: String },
                 location: { type: String },
             }
         ],
         handle_routines: {
-            choosing_address: { type: Boolean, default: true }
+            choosing_address: { type: Boolean, default: false },
+            address_routine: { type: Boolean, default: true },
+            number_question_address: { type: Number, default: 0 }
         }
     },
     {
