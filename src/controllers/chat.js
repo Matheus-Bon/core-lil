@@ -2,8 +2,11 @@ const { fetchMediaByName } = require("../models/Media");
 const { createOrder, updateOrderById, fetchOrderById } = require("../models/Order");
 const { fetchUserByPhone, createUser, updateUserById } = require("../models/User");
 
-const phrases = require("../phrases");
 const sendText = require("../utils/sendText");
+
+const phrases = require("../phrases");
+const { ConnectionReadyEvent } = require("mongodb");
+
 
 const chat = async (client, message) => {
     const userPhone = message.from.replace(/\D/g, '');
@@ -106,6 +109,7 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
     const choosingAddress = user.handle_routines.choosingAddress;
     const orderId = user.current_order_id;
     const numberQuestionAddress = user.handle_routines.number_question_address;
+    const addresses = user.address;
 
     if (!choosingAddress && (content === '1' || content === '2')) {
         const isDelivery = content === '1';
@@ -123,7 +127,27 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
         await sendText(
             client,
             from,
-            phrases.requestAddress
+            phrases.requestTitleAddress
+        );
+
+        return true;
+    }
+
+    if (choosingAddress && addresses.length > 1) {
+        let count = 1;
+        let content = "";
+
+        for (item of addresses) {
+            content += `_*Endereços Cadastrados*_\n\n[${count}] ${item.title} - ${item.address}\n`;
+            count++;
+        }
+
+        content += "\n\nEscolha um endereço";
+
+        await sendText(
+            client,
+            from,
+            content
         );
 
         return true;
@@ -131,38 +155,30 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
 
     if (choosingAddress && content) {
         let question = ''
-        
 
-        if (numberQuestionAddress == 0) {
-            const update = {
-                $push: {
-                    'address': {
-                        address: content
-                    }
+        const update = {
+            $push: {
+                'address': {
+                    address: content
                 }
             }
+        }
 
-            await Promise.all([
-                updateOrderById(orderId, update),
-                updateUserById(
-                    userId,
-                    { $set: { 'handle_routines.number_question_address': 1 } }
-                )
-            ]);
-
-            await sendText(
-                client,
-                from,
-                phrases.requestLoc
+        await Promise.all([
+            updateOrderById(orderId, update),
+            updateUserById(
+                userId,
+                { $inc: { 'handle_routines.number_question_address': 1 } }
             )
+        ]);
 
-            return true;
-        }
+        await sendText(
+            client,
+            from,
+            phrases.requestLoc
+        )
 
-        if (numberQuestionAddress == 1) {
-
-        }
-
+        return true;
     }
 
     return false;
