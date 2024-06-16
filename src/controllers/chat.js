@@ -18,7 +18,7 @@ const chat = async (client, message) => {
     const userName = user?.name;
     const userId = user?._id;
     let currentOrderId = user?.current_order_id;
-    
+
     if (!user || userName === 'await') {
         const data = { client, from, user, content, userPhone };
         const stop = await chooseNameRoutine(data);
@@ -66,32 +66,31 @@ const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => 
 
 const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderId }) => {
 
-    if (!currentOrderId || !content) {
+    if (content === '1') {
+        /* const mediaValue = await fetchMediaByName('menu')
+            .then(data => data.value); */
+
+        await client.sendImage(
+            from,
+            "https://i.ibb.co/HFJHd4J/Captura-de-tela-de-2024-06-16-13-32-51.png",
+            "test-filename",
+            phrases.menuOrder
+        );
+
+    }
+
+    if (content === '2') {
+        await createOrder(user);
+    }
+
+    const def = currentOrderId || content;
+    if (!def) {
         await client.sendText(
             from,
             phrases.menuOrder
         );
 
         return true;
-    }
-
-    if (content === '1') {
-        const mediaValue = await fetchMediaByName('menu')
-            .then(data => data.value);
-
-        await client.sendImageFromBase64(
-            from,
-            mediaValue
-        );
-
-        await client.sendText(
-            from,
-            phrases.menuOrder
-        );
-    }
-
-    if (content === '2') {
-        await createOrder(user);
     }
 
     return false;
