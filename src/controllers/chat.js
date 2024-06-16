@@ -5,13 +5,12 @@ const { fetchUserByPhone, createUser, updateUserById } = require("../models/User
 const sendText = require("../utils/sendText");
 
 const phrases = require("../phrases");
-const { ConnectionReadyEvent } = require("mongodb");
 
 
 const chat = async (client, message) => {
     const userPhone = message.from.replace(/\D/g, '');
     const from = message.from;
-    const content = message.sender.content;
+    const content = message.body;
 
     const user = await fetchUserByPhone(userPhone);
     const choosingAddress = user?.handle_routines.choosing_address;
@@ -19,17 +18,16 @@ const chat = async (client, message) => {
     const userName = user?.name;
     const userId = user?._id;
     let currentOrderId = user?.current_order_id;
-
+    
     if (!user || userName === 'await') {
-        const data = { client, from, user, content };
+        const data = { client, from, user, content, userPhone };
         const stop = await chooseNameRoutine(data);
         if (stop) return;
     }
 
     if (!currentOrderId) {
-        const data = { client, from, user, content };
+        const data = { client, from, user, content, currentOrderId };
         const stop = await sendMenuOrderRoutine(data);
-
         if (stop) return;
 
         currentOrderId = await createOrder(user)
@@ -49,56 +47,51 @@ const chat = async (client, message) => {
     }
 }
 
-const chooseNameRoutine = async ({ client, from, user, content }) => {
+const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => {
     if (!user) {
         const text = phrases.chooseName;
-        const result = await client.sendText(from, text);
-
-        if (result.me.stauts !== 200) {
-            return true;
-        }
-
-        return false;
+        await client.sendText(from, text);
+        await createUser(userPhone);
+        return true;
     }
 
     const userName = user.name;
     if (userName === 'await') {
+        console.log('content ', content)
         const update = { $set: { name: content } }
         await updateUserById(user._id, update);
-
         return false;
     }
 }
 
-const sendMenuOrderRoutine = async ({ client, from, user, content }) => {
-    if (content === '1') {
-        const mediaValue = await fetchMediaByName('menu')
-            .then(data => data.value);
+const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderId }) => {
 
-        const res = await client.sendImageFromBase64(
-            from,
-            mediaValue
-        );
-
-        if (res.me.status !== 200)
-            return true;
-
-        await sendMenuOrderRoutine({ client, from, user, content: null });
-    }
-
-    if (content === '2') {
-        await createOrder(user);
-        return false;
-    }
-
-    if (!content) {
-        const res = await client.sendText(
+    if (!currentOrderId || !content) {
+        await client.sendText(
             from,
             phrases.menuOrder
         );
 
-        if (res.me.status !== 200)
-            return true;
+        return true;
+    }
+
+    if (content === '1') {
+        const mediaValue = await fetchMediaByName('menu')
+            .then(data => data.value);
+
+        await client.sendImageFromBase64(
+            from,
+            mediaValue
+        );
+
+        await client.sendText(
+            from,
+            phrases.menuOrder
+        );
+    }
+
+    if (content === '2') {
+        await createOrder(user);
     }
 
     return false;
