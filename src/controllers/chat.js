@@ -15,14 +15,25 @@ const chat = async (client, message) => {
     const user = await fetchUserByPhone(userPhone);
     const choosingAddress = user?.handle_routines.choosing_address;
     const addressRoutine = user?.handle_routines.address_routine;
+    const currentOrderId = user?.current_order_id;
     const userName = user?.name;
     const userId = user?._id;
-    let currentOrderId = user?.current_order_id;
+
+    console.log('user ', user)
+    console.log('currentOrderId ', currentOrderId)
+
 
     if (!user || userName === 'await') {
         const data = { client, from, user, content, userPhone };
         const stop = await chooseNameRoutine(data);
         if (stop) return;
+    } else if (user && !currentOrderId) {
+        const text = `Olá, ${userName}! Seja bem vindo novamente!`;
+        await sendText(
+            client,
+            from,
+            text
+        );
     }
 
     if (!currentOrderId) {
@@ -30,18 +41,17 @@ const chat = async (client, message) => {
         const stop = await sendMenuOrderRoutine(data);
         if (stop) return;
 
-        currentOrderId = await createOrder(user)
-            .then(data => data._id);
-
         await sendText(
             client,
             from,
-            phrases.requestTitleAddress
+            phrases.isDelivery
         );
+
+        return;
     }
 
     if (addressRoutine) {
-        const data = { client, from, content, currentOrderId, userId, choosingAddress };
+        const data = { client, from, content, user };
         const stop = await chooseAddressRoutine(data);
         if (stop) return;
     }
@@ -57,7 +67,6 @@ const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => 
 
     const userName = user.name;
     if (userName === 'await') {
-        console.log('content ', content)
         const update = { $set: { name: content } }
         await updateUserById(user._id, update);
         return false;
@@ -65,6 +74,10 @@ const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => 
 }
 
 const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderId }) => {
+
+    if (!currentOrderId) {
+        await createOrder(user);
+    }
 
     if (content === '1') {
         /* const mediaValue = await fetchMediaByName('menu')
@@ -74,106 +87,62 @@ const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderI
             from,
             "https://i.ibb.co/HFJHd4J/Captura-de-tela-de-2024-06-16-13-32-51.png",
             "test-filename",
-            phrases.menuOrder
+            phrases.doTheOrder
         );
 
     }
 
     if (content === '2') {
         await createOrder(user);
+        return false;
     }
 
-    const def = currentOrderId || content;
-    if (!def) {
+    const choices = ['1', '2'];
+    if ((!currentOrderId || !content) && !choices.includes(content)) {
         await client.sendText(
             from,
             phrases.menuOrder
         );
-
-        return true;
     }
 
-    return false;
+    return true;
 }
 
 const chooseAddressRoutine = async ({ client, from, content, user }) => {
     const userId = user._id;
-    const choosingAddress = user.handle_routines.choosingAddress;
-    const orderId = user.current_order_id;
-    const numberQuestionAddress = user.handle_routines.number_question_address;
     const addresses = user.address;
+    const orderId = user.current_order_id;
+    const choosingAddress = user.handle_routines.choosingAddress;
+    const numberQuestionAddress = user.handle_routines.number_question_address;
 
-    if (!choosingAddress && (content === '1' || content === '2')) {
-        const isDelivery = content === '1';
+    const choices = ['1', '2'];
+    if (choices.includes(content)) {
+        return await chooseIfDelivery({ content, user, client, from });
+    }
+
+}
+
+const chooseIfDelivery = async ({ content, user, client, from }) => {
+    const orderId = user.current_order_id;
+    const userId = user._id;
+
+    if (content === '2') {
         await Promise.all([
-            updateOrderById(
-                orderId,
-                { $set: { delivery: isDelivery } }
-            ),
-            updateUserById(
-                userId,
-                { $set: { 'handle_routines.choosing_address': isDelivery } }
-            )
+            updateOrderById(orderId, { $set: { "delivery": false } }),
+            updateUserById(userId, { $set: { "handle_routines.address_routine": false } })
         ]);
 
-        await sendText(
-            client,
-            from,
-            phrases.requestTitleAddress
-        );
-
-        return true;
+        return false;
     }
 
-    if (choosingAddress && addresses.length > 1) {
-        let count = 1;
-        let content = "";
 
-        for (item of addresses) {
-            content += `_*Endereços Cadastrados*_\n\n[${count}] ${item.title} - ${item.address}\n`;
-            count++;
-        }
+    await sendText(
+        client,
+        from,
+        phrases.requestTitleAddress
+    );
 
-        content += "\n\nEscolha um endereço";
-
-        await sendText(
-            client,
-            from,
-            content
-        );
-
-        return true;
-    }
-
-    if (choosingAddress && content) {
-        let question = ''
-
-        const update = {
-            $push: {
-                'address': {
-                    address: content
-                }
-            }
-        }
-
-        await Promise.all([
-            updateOrderById(orderId, update),
-            updateUserById(
-                userId,
-                { $inc: { 'handle_routines.number_question_address': 1 } }
-            )
-        ]);
-
-        await sendText(
-            client,
-            from,
-            phrases.requestLoc
-        )
-
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 module.exports = chat;
