@@ -13,15 +13,11 @@ const chat = async (client, message) => {
     const content = message.body;
 
     const user = await fetchUserByPhone(userPhone);
-    const choosingAddress = user?.handle_routines.choosing_address;
-    const addressRoutine = user?.handle_routines.address_routine;
-    const currentOrderId = user?.current_order_id;
-    const userName = user?.name;
-    const userId = user?._id;
-
-    console.log('user ', user)
-    console.log('currentOrderId ', currentOrderId)
-
+    const choosingAddress = user?.get('handle_routines.choosing_address');
+    const seeMenu = user?.get('handle_routines.see_menu');
+    const currentOrderId = user?.get('current_order_id');
+    const userName = user?.get('name');
+    const userId = user?.get('_id');
 
     if (!user || userName === 'await') {
         const data = { client, from, user, content, userPhone };
@@ -37,9 +33,15 @@ const chat = async (client, message) => {
     }
 
     if (!currentOrderId) {
-        const data = { client, from, user, content, currentOrderId };
+        await createOrder(user);
+    }
+
+    if (seeMenu) {
+        const data = { client, from, content };
         const stop = await sendMenuOrderRoutine(data);
         if (stop) return;
+
+        await updateUserById(userId, { "handle_routines.see_menu": false });
 
         await sendText(
             client,
@@ -50,7 +52,7 @@ const chat = async (client, message) => {
         return;
     }
 
-    if (addressRoutine) {
+    if (choosingAddress) {
         const data = { client, from, content, user };
         const stop = await chooseAddressRoutine(data);
         if (stop) return;
@@ -73,15 +75,10 @@ const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => 
     }
 }
 
-const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderId }) => {
-
-    if (!currentOrderId) {
-        await createOrder(user);
-    }
-
+const sendMenuOrderRoutine = async ({ client, from, content }) => {
     if (content === '1') {
-        /* const mediaValue = await fetchMediaByName('menu')
-            .then(data => data.value); */
+        // const mediaValue = await fetchMediaByName('menu')
+        //     .then(data => data.value);
 
         await client.sendImage(
             from,
@@ -89,16 +86,14 @@ const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderI
             "test-filename",
             phrases.doTheOrder
         );
-
     }
 
     if (content === '2') {
-        await createOrder(user);
         return false;
     }
 
     const choices = ['1', '2'];
-    if ((!currentOrderId || !content) && !choices.includes(content)) {
+    if (!content || !choices.includes(content)) {
         await client.sendText(
             from,
             phrases.menuOrder
@@ -109,17 +104,57 @@ const sendMenuOrderRoutine = async ({ client, from, user, content, currentOrderI
 }
 
 const chooseAddressRoutine = async ({ client, from, content, user }) => {
-    const userId = user._id;
-    const addresses = user.address;
-    const orderId = user.current_order_id;
-    const choosingAddress = user.handle_routines.choosingAddress;
-    const numberQuestionAddress = user.handle_routines.number_question_address;
+    const userId = user.get('_id');
+    const addresses = user.get('address');
+    const orderId = user.get('current_order_id');
+    const numberQuestionAddress = user.get('handle_routines.number_question_address');
 
     const choices = ['1', '2'];
     if (choices.includes(content)) {
         return await chooseIfDelivery({ content, user, client, from });
     }
 
+    console.log('content ', content)
+    console.log('numberQuestionAddress ', numberQuestionAddress)
+
+    if (content && numberQuestionAddress === 0) {
+        const title = content.replace(" ", "_");
+        const update = {
+            "adresses": { [title]: {} },
+            "response_history": { "chosen_title": title },
+            "handle_routines.number_question_address": 1
+        }
+
+        await updateUserById(userId, update);
+
+        await sendText(
+            client,
+            from,
+            phrases.requestAddress
+        );
+
+        return true;
+    }
+
+    if (content && numberQuestionAddress === 1) {
+        const chosenTitle = user.get('response_history.chosen_title');
+        user.set(`adresses.${chosenTitle}.address`, content)
+        user.save();
+        
+        const update = {
+            "handle_routines.number_question_address": 2
+        }
+
+        await updateUserById(userId, update);
+
+        await sendText(
+            client,
+            from,
+            phrases.requestLoc
+        );
+
+        return true;
+    }
 }
 
 const chooseIfDelivery = async ({ content, user, client, from }) => {
@@ -128,19 +163,22 @@ const chooseIfDelivery = async ({ content, user, client, from }) => {
 
     if (content === '2') {
         await Promise.all([
-            updateOrderById(orderId, { $set: { "delivery": false } }),
-            updateUserById(userId, { $set: { "handle_routines.address_routine": false } })
+            updateOrderById(orderId, { "delivery": false }),
+            updateUserById(userId, { "handle_routines.choosing_address": false })
         ]);
 
         return false;
     }
 
+    if (!user.get('adresses').size) {
+        await sendText(
+            client,
+            from,
+            phrases.requestTitleAddress
+        );
+    } else {
 
-    await sendText(
-        client,
-        from,
-        phrases.requestTitleAddress
-    );
+    }
 
     return true;
 }

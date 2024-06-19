@@ -34,7 +34,6 @@ const createOrder = async (user) => {
     const data = { user_id: user.id, order_code: orderCode };
 
     try {
-        console.log('ON')
         const newOrder = await Order.create(data);
 
         await updateUserById(
