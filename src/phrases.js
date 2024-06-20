@@ -8,8 +8,10 @@ const phrases = {
     // Sobre endereços & entregas
     isDelivery: "Seu pedido será para entrega? 🚚\n\n[1] Sim\n[2] Não",
     requestAddress: "📍 Qual é o seu endereço _completo_?",
-    requestLoc: "📍 Por favor, me informe sua localização\n\nObs: Para enviar sua localização, siga estes passos:\n1. Clique no ícone de clips 📎\n2. Clique em *Localização*\n3. Clique em *Localização atual*",
+    requestLoc: "📍 Por favor, me informe sua localização\n\nObs: Para enviar sua localização, siga estes passos:\n\n1. Clique no ícone de clips 📎\n2. Clique em *Localização*\n3. Clique em *Localização atual*",
     requestTitleAddress: "Ok! Antes de me enviar o seu endereço, qual apelido você gostaria de dar a este local? 🏠\n\nEx:. _Minha Casa, Trabalho_",
+    titleExists: "Esse apelido já existe. Informe um apelido não existente.",
+
 }
 
 

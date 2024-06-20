@@ -1,6 +1,6 @@
 const { fetchMediaByName } = require("../models/Media");
 const { createOrder, updateOrderById, fetchOrderById } = require("../models/Order");
-const { fetchUserByPhone, createUser, updateUserById } = require("../models/User");
+const { fetchUserByPhone, createUser, updateUserById, updateAddress } = require("../models/User");
 
 const sendText = require("../utils/sendText");
 
@@ -11,8 +11,16 @@ const chat = async (client, message) => {
     const userPhone = message.from.replace(/\D/g, '');
     const from = message.from;
     const content = message.body;
+    const msgType = message.type;
+    const lat = message?.lat;
+    const lng = message?.lng;
+
+    if (msgType === 'audio' || msgType === 'video') {
+        return;
+    }
 
     const user = await fetchUserByPhone(userPhone);
+
     const choosingAddress = user?.get('handle_routines.choosing_address');
     const seeMenu = user?.get('handle_routines.see_menu');
     const currentOrderId = user?.get('current_order_id');
@@ -53,7 +61,7 @@ const chat = async (client, message) => {
     }
 
     if (choosingAddress) {
-        const data = { client, from, content, user };
+        const data = { client, from, content, user, lat, lng };
         const stop = await chooseAddressRoutine(data);
         if (stop) return;
     }
@@ -103,10 +111,8 @@ const sendMenuOrderRoutine = async ({ client, from, content }) => {
     return true;
 }
 
-const chooseAddressRoutine = async ({ client, from, content, user }) => {
+const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) => {
     const userId = user.get('_id');
-    const addresses = user.get('address');
-    const orderId = user.get('current_order_id');
     const numberQuestionAddress = user.get('handle_routines.number_question_address');
 
     const choices = ['1', '2'];
@@ -114,14 +120,21 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
         return await chooseIfDelivery({ content, user, client, from });
     }
 
-    console.log('content ', content)
-    console.log('numberQuestionAddress ', numberQuestionAddress)
-
     if (content && numberQuestionAddress === 0) {
-        const title = content.replace(" ", "_");
+        const nickname = content.replace(" ", "_");
+
+        if (user.addresses.has(nickname)) {
+            await sendText(
+                client,
+                from,
+                phrases.titleExists
+            );
+            return true;
+        }
+
         const update = {
-            "adresses": { [title]: {} },
-            "response_history": { "chosen_title": title },
+            "adresses": { [nickname]: {} },
+            "response_history": { "nickname": nickname },
             "handle_routines.number_question_address": 1
         }
 
@@ -137,12 +150,9 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
     }
 
     if (content && numberQuestionAddress === 1) {
-        const chosenTitle = user.get('response_history.chosen_title');
-        user.set(`adresses.${chosenTitle}.address`, content)
-        user.save();
-        
         const update = {
-            "handle_routines.number_question_address": 2
+            "handle_routines.number_question_address": 2,
+            "response_history.address": content,
         }
 
         await updateUserById(userId, update);
@@ -154,6 +164,19 @@ const chooseAddressRoutine = async ({ client, from, content, user }) => {
         );
 
         return true;
+    }
+
+    if (content && numberQuestionAddress === 2) {
+
+        await updateAddress(user, lat, lng);
+
+        await sendText(
+            client,
+            from,
+            'AGORA, ENVIAR URL DO SITE'
+        );
+
+        return false;
     }
 }
 

@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const responseHistory = new Schema({
-    chosen_title: { type: String },
+    nickname: { type: String },
+    address: { type: String }
 }, { _id: false });
 
 const handleRoutines = new Schema({
@@ -13,7 +14,10 @@ const handleRoutines = new Schema({
 
 const adresses = new Schema({
     address: { type: String },
-    location: { type: String },
+    location: {
+        lat: { type: String },
+        lng: { type: String },
+    },
 }, { _id: false });
 
 const schema = new Schema(
@@ -74,7 +78,22 @@ const fetchAddressByUserIdAndTitle = async (userId, title) => {
     );
 }
 
+const updateAddress = async (user, lat, lng) => {
+    const nickname = user.get('response_history.nickname');
+    const address = user.get('response_history.address');
+
+    const location = `${lat.toString()} ${lng.toString()}`;
+
+    user.adresses.set(nickname.address, address);
+    user.adresses.set(nickname.location, location);
+
+    await user.save();
+
+    return user;
+}
+
 module.exports = {
+    updateAddress,
     fetchAddressByUserIdAndTitle,
     updateUserById,
     createUser,
