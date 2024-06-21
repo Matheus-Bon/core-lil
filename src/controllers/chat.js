@@ -5,6 +5,7 @@ const { fetchUserByPhone, createUser, updateUserById, updateAddress } = require(
 const sendText = require("../utils/sendText");
 
 const phrases = require("../phrases");
+const sendList = require("../utils/sendList");
 
 
 const chat = async (client, message) => {
@@ -14,6 +15,11 @@ const chat = async (client, message) => {
     const msgType = message.type;
     const lat = message?.lat;
     const lng = message?.lng;
+
+    client.onIncomingCall(async (call) => {
+        console.log(call);
+        client.sendText(call.peerJid, "Sorry, I still can't answer calls");
+    });
 
     if (msgType === 'audio' || msgType === 'video') {
         return;
@@ -113,9 +119,32 @@ const sendMenuOrderRoutine = async ({ client, from, content }) => {
 
 const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) => {
     const userId = user.get('_id');
+    const adresses = user.get('adresses');
+    const currentOrderId = user.get('current_order_id');
     const numberQuestionAddress = user.get('handle_routines.number_question_address');
 
-    const choices = ['1', '2'];
+    const choices = ['1', '2', '3'];
+
+    if (adresses.length && choices.includes(content)) {
+        const nmb = parseInt(content) - 1;
+        const chosenAddress = adresses[nmb];
+
+        await updateOrderById(
+            currentOrderId,
+            {
+                "address_id": chosenAddress._id
+            }
+        )
+
+        await sendText(
+            client,
+            from,
+            'AGORA, ENVIAR URL DO SITE'
+        );
+
+        return false;
+    }
+
     if (choices.includes(content)) {
         return await chooseIfDelivery({ content, user, client, from });
     }
@@ -181,8 +210,10 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
 }
 
 const chooseIfDelivery = async ({ content, user, client, from }) => {
-    const orderId = user.current_order_id;
-    const userId = user._id;
+    const orderId = user.get('current_order_id');
+    const userId = user.get('_id');
+    const adresses = user.get('adresses');
+
 
     if (content === '2') {
         await Promise.all([
@@ -193,14 +224,25 @@ const chooseIfDelivery = async ({ content, user, client, from }) => {
         return false;
     }
 
-    if (!user.get('adresses').size) {
+    if (!adresses.length) {
         await sendText(
             client,
             from,
             phrases.requestTitleAddress
         );
     } else {
+        let list = "🏠 *Endereços Cadastrados*\n\n";
+        let count = 1;
+        for (const item of adresses) {
+            list += `[${count}] ${item.nickname}`;
+            count++;
+        }
 
+        await sendText(
+            client,
+            from,
+            list
+        );
     }
 
     return true;

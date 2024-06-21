@@ -88,7 +88,6 @@ const updateAddress = async (user, lat, lng) => {
 
 module.exports = {
     updateAddress,
-    fetchAddressByUserIdAndTitle,
     updateUserById,
     createUser,
     fetchUserByPhone
