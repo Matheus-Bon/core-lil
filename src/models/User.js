@@ -12,12 +12,18 @@ const handleRoutines = new Schema({
     see_menu: { type: Boolean, default: true },
 }, { _id: false });
 
-const adresses = new Schema({
+const address = new Schema({
+    nickname: { type: String, unique: true },
     address: { type: String },
     location: {
         lat: { type: String },
         lng: { type: String },
     },
+});
+
+const credentialsSchema = new Schema({
+    email: { type: String },
+    password: { type: String }
 }, { _id: false });
 
 const schema = new Schema(
@@ -26,14 +32,8 @@ const schema = new Schema(
         phone: { type: String, maxLength: 13, index: { unique: true } },
         current_order_id: { type: mongoose.Types.ObjectId },
         role: { type: String, enum: ['admin', 'clerk', 'user', 'deliveryMan'] },
-        credentials: {
-            email: { type: String },
-            password: { type: String },
-        },
-        adresses: {
-            type: Map,
-            of: adresses
-        },
+        credentials: credentialsSchema,
+        adresses: { type: [address], default: [] },
         handle_routines: handleRoutines,
         response_history: responseHistory
     },
@@ -54,7 +54,6 @@ const createUser = async (phone) => {
         phone,
         role: 'user',
         handle_routines: {},
-        adresses: {},
         response_history: {}
     }
 
@@ -69,27 +68,22 @@ const updateUserById = async (id, update) => {
     )
 }
 
-const fetchAddressByUserIdAndTitle = async (userId, title) => {
-    return await User.findOne(
-        {
-            _id: userId,
-            address: { $elementMatch: { title } }
-        }
-    );
-}
-
 const updateAddress = async (user, lat, lng) => {
     const nickname = user.get('response_history.nickname');
     const address = user.get('response_history.address');
+    const userId = user.get('_id');
 
-    const location = `${lat.toString()} ${lng.toString()}`;
+    const update = {
+        $push: {
+            adresses: {
+                nickname,
+                address,
+                location: { lat, lng }
+            }
+        }
+    }
 
-    user.adresses.set(nickname.address, address);
-    user.adresses.set(nickname.location, location);
-
-    await user.save();
-
-    return user;
+    return await updateUserById(userId, update);
 }
 
 module.exports = {

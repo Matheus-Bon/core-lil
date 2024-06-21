@@ -121,9 +121,10 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
     }
 
     if (content && numberQuestionAddress === 0) {
-        const nickname = content.replace(" ", "_");
+        const adresses = user.get('adresses');
 
-        if (user.addresses.has(nickname)) {
+        const nicknameCreated = adresses.find(el => el.nickname === content);
+        if (nicknameCreated) {
             await sendText(
                 client,
                 from,
@@ -133,8 +134,7 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
         }
 
         const update = {
-            "adresses": { [nickname]: {} },
-            "response_history": { "nickname": nickname },
+            "response_history": { "nickname": content },
             "handle_routines.number_question_address": 1
         }
 
