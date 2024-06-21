@@ -71,6 +71,12 @@ const chat = async (client, message) => {
         const stop = await chooseAddressRoutine(data);
         if (stop) return;
     }
+
+    await sendText(
+        client,
+        from,
+        'LINK'
+    )
 }
 
 const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => {
@@ -134,7 +140,12 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
             {
                 "address_id": chosenAddress._id
             }
-        )
+        );
+
+        await updateUserById(
+            userId,
+            { 'handle_routines.choosing_address': false }
+        );
 
         await sendText(
             client,
@@ -198,6 +209,11 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
     if (content && numberQuestionAddress === 2) {
 
         await updateAddress(user, lat, lng);
+
+        await updateUserById(
+            userId,
+            { 'handle_routines.choosing_address': false }
+        );
 
         await sendText(
             client,
