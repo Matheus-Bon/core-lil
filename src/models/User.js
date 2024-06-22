@@ -10,6 +10,8 @@ const handleRoutines = new Schema({
     choosing_address: { type: Boolean, default: true },
     number_question_address: { type: Number, default: 0 },
     see_menu: { type: Boolean, default: true },
+    link_sent: { type: Boolean, default: false },
+
 }, { _id: false });
 
 const address = new Schema({

@@ -28,6 +28,7 @@ const chat = async (client, message) => {
     const user = await fetchUserByPhone(userPhone);
 
     const choosingAddress = user?.get('handle_routines.choosing_address');
+    const linkSent = user?.get('handle_routines.link_sent');
     const seeMenu = user?.get('handle_routines.see_menu');
     const currentOrderId = user?.get('current_order_id');
     const userName = user?.get('name');
@@ -72,11 +73,19 @@ const chat = async (client, message) => {
         if (stop) return;
     }
 
-    await sendText(
-        client,
-        from,
-        'LINK'
-    )
+    if (!linkSent) {
+        const link = `http://localhost:3333/${userId}`;
+        const text = `Agora, você pode fazer seu pedido por este link:\n\n${link}`;
+        
+        await sendText(
+            client,
+            from,
+            text
+        );
+
+        return;
+    }
+
 }
 
 const chooseNameRoutine = async ({ client, from, user, content, userPhone }) => {
@@ -147,16 +156,12 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
             { 'handle_routines.choosing_address': false }
         );
 
-        await sendText(
-            client,
-            from,
-            'AGORA, ENVIAR URL DO SITE'
-        );
-
         return false;
     }
 
-    if (choices.includes(content)) {
+    const deliveryChoicesPos = ['Sim', 'S', 's'];
+    const deliveryChoicesNeg = ['Não', 'Nao', 'n'];
+    if (deliveryChoicesPos.includes(content) || deliveryChoicesNeg.includes(content)) {
         return await chooseIfDelivery({ content, user, client, from });
     }
 
@@ -215,12 +220,6 @@ const chooseAddressRoutine = async ({ client, from, content, user, lat, lng }) =
             { 'handle_routines.choosing_address': false }
         );
 
-        await sendText(
-            client,
-            from,
-            'AGORA, ENVIAR URL DO SITE'
-        );
-
         return false;
     }
 }
@@ -229,9 +228,9 @@ const chooseIfDelivery = async ({ content, user, client, from }) => {
     const orderId = user.get('current_order_id');
     const userId = user.get('_id');
     const adresses = user.get('adresses');
+    const deliveryChoicesNeg = ['Não', 'Nao', 'n'];
 
-
-    if (content === '2') {
+    if (deliveryChoicesNeg.includes(content)) {
         await Promise.all([
             updateOrderById(orderId, { "delivery": false }),
             updateUserById(userId, { "handle_routines.choosing_address": false })
