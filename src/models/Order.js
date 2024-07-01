@@ -14,7 +14,13 @@ const schema = new Schema(
             enum: ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'completed', 'canceled'],
             default: 'pending'
         },
-        delivery: { type: Boolean, default: true }
+        delivery: { type: Boolean, default: true },
+        products: [
+            {
+                product_id: { type: mongoose.Schema.ObjectId, default: true },
+                quantity: { type: Number, minLength: 1 }
+            }
+        ]
     },
     {
         timestamps: true,

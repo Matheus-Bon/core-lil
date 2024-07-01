@@ -5,8 +5,13 @@ const venom = require('venom-bot');
 
 const chat = require('./controllers/chat');
 const connectDB = require('./services/database');
+const handleApis = require('./api');
 
-const whitelist = []
+const app = express();
+
+const whitelist = [
+    "http://localhost:3030/"
+]
 const corsOptions = {
     origin: function (origin, callback) {
         if (whitelist.indexOf(origin) !== -1) {
@@ -17,9 +22,17 @@ const corsOptions = {
     }
 }
 
-const app = express();
-app.use(cors(corsOptions));
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(express.json());
+
+
+const start = async (client) => {
+    await handleApis(client, app);
+    client.onMessage(async (message) => chat(client, message));
+}
 
 
 const PORT = process.env.PORT;
@@ -40,10 +53,6 @@ app.listen(PORT, async () => {
                 devtools: process.env.DEBUG === 'true' ? true : false
             }
         )
-        .then((client) => {
-            client.onMessage(async (message) => chat(client, message))
-        })
-        .catch((erro) => {
-            console.log(erro);
-        });
+        .then((client) => start(client))
+        .catch((erro) => console.log(erro));
 });

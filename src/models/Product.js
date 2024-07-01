@@ -5,7 +5,7 @@ const schema = new Schema(
     {
         name: { type: String },
         description: { type: String },
-        category: { type: String },
+        category: { type: String, unique: true },
         image: { type: String },
         price: { type: Number },
         active: { type: Boolean, default: true }
