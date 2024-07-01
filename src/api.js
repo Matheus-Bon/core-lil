@@ -5,6 +5,10 @@ const main = async (client, app) => {
         const { from, message } = req.body;
         const type = req.params.msgType
 
+        if (!from || message || type) {
+            return res.status(400);
+        }
+
         switch (type) {
             case 'text':
                 try {
